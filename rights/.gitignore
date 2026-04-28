@@ -1,0 +1,64 @@
+# ── Dependencies ───────────────────────────────────────────
+node_modules/
+.pnpm-store/
+
+# ── Build outputs ───────────────────────────────────────────
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# ── Environment — ALL env files, no exceptions ─────────────
+.env
+.env.*
+*.env
+*.env.*
+.env.local
+.env.example
+packages/prisma/.env
+
+# ── IDE / Editor ────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ── OS ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Python ──────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# ── Logs ────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# ── Test coverage ────────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ── Turbo ───────────────────────────────────────────────────
+.turbo/
+
+# ── AI service cache ────────────────────────────────────────
+apps/ai/ingest/cache/
+*.csv
+
+# ── Chain service — local runtime data ──────────────────────
+# Each developer gets their own local chain; never commit it
+apps/chain/data/ledger.json
+apps/chain/uploads/*
+!apps/chain/uploads/.gitkeep
+apps/chain/node_modules/
