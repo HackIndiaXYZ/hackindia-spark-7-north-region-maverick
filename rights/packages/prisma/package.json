@@ -19,6 +19,8 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:seed:perf": "tsx performance-seed.ts",
+    "db:seed:rich": "tsx rich-seed.ts",
+    "db:seed:user": "tsx user-seed.ts",
     "studio": "prisma studio",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",

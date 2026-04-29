@@ -232,9 +232,16 @@ export class CommunityService {
       `listForUser — user ${user.id} PINs for lookup: [${[...pins].join(', ')}]`,
     );
 
+    // When the user has no PINs, show the most active community clusters as a
+    // discovery feed so the page is never blank (fallback to all active clusters).
     if (pins.size === 0) {
-      this.logger.log('listForUser: no PIN on profile and no filed grievances — empty');
-      return [];
+      this.logger.log('listForUser: no PIN — returning top active clusters as fallback');
+      return this.prisma.communityGrievance.findMany({
+        where: { status: { not: 'RESOLVED' } },
+        orderBy: { count: 'desc' },
+        take: 10,
+        include: { _count: { select: { members: true } } },
+      });
     }
 
     const pinList = [...pins];
@@ -249,6 +256,20 @@ export class CommunityService {
       if (!byId.has(r.id)) {
         byId.set(r.id, r);
       }
+    }
+
+    // If no clusters match the user's PINs, fall back to all active clusters
+    // so the local-issues page always has content to show.
+    if (byId.size === 0) {
+      this.logger.log('listForUser: no clusters for user PINs — falling back to all active clusters');
+      const fallback = await this.prisma.communityGrievance.findMany({
+        where: { status: { not: 'RESOLVED' } },
+        orderBy: { count: 'desc' },
+        take: 10,
+        include: { _count: { select: { members: true } } },
+      });
+      this.logger.log(`listForUser — returning ${fallback.length} fallback cluster(s)`);
+      return fallback;
     }
 
     const out = [...byId.values()];

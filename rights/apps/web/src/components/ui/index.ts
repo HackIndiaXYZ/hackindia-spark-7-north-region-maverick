@@ -22,3 +22,5 @@ export { ErrorBoundary } from './ErrorBoundary';
 
 export { BottomSheet } from './BottomSheet';
 export type { BottomSheetProps } from './BottomSheet';
+
+export { GpsButton } from './GpsButton';

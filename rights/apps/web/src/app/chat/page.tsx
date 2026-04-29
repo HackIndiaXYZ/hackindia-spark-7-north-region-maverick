@@ -13,9 +13,11 @@ import {
   BottomSheet,
   ErrorBoundary,
   SkeletonCard,
+  GpsButton,
 } from '@/components/ui';
 import { createApiClient, type ApiError } from '@/lib/api';
 import { strings } from '@/lib/strings';
+import { useGps } from '@/hooks/useGps';
 import type { IntentPreview } from '@repo/shared';
 
 const s = strings.chat;
@@ -37,6 +39,16 @@ export default function ChatPage() {
   const [error, setError] = useState('');
   const [preview, setPreview] = useState<IntentPreview | null>(null);
   const [sosSheet, setSosSheet] = useState(false);
+
+  const gps = useGps();
+
+  /* ── GPS fetch → auto-fill locality ────────────────────── */
+  const handleGps = useCallback(async () => {
+    const result = await gps.fetch();
+    if (result && !locality) {
+      setLocality(result.label);
+    }
+  }, [gps, locality]);
 
   /* ── Submit grievance for analysis ─────────────────────── */
   const handleAnalyse = useCallback(async () => {
@@ -82,6 +94,8 @@ export default function ChatPage() {
         text,
         pin,
         locality: locality || undefined,
+        lat: gps.coords?.lat,
+        lng: gps.coords?.lng,
         isAnonymous,
         confirmedStatute: preview.statute,
         confirmedSection: preview.section,
@@ -161,6 +175,22 @@ export default function ChatPage() {
                       value={locality}
                       onChange={(e) => setLocality(e.target.value)}
                     />
+                  </div>
+
+                  {/* GPS location button */}
+                  <div className="mt-3 flex items-center gap-3">
+                    <GpsButton
+                      state={gps.state}
+                      coords={gps.coords}
+                      error={gps.error}
+                      onFetch={handleGps}
+                      onReset={() => { gps.reset(); setLocality(''); }}
+                    />
+                    {gps.state === 'ok' && (
+                      <p className="text-[11px] text-ink-muted">
+                        Coordinates attached to your grievance
+                      </p>
+                    )}
                   </div>
 
                   {/* Anonymous toggle */}

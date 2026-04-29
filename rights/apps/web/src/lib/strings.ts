@@ -69,6 +69,8 @@ export const strings = {
       FOLLOWUP_7D: '7-day follow-up',
       ESCALATION_14D: '14-day escalation',
       SOS_BROADCAST: 'SOS broadcast',
+      USER_UPDATE: 'Update',
+      COMMUNITY_NOTICE: 'Community notice',
     } as Record<string, string>,
     channelLabels: {
       EMAIL: 'Email',

@@ -7,7 +7,8 @@ import { Injectable, Logger, BadRequestException, NotFoundException } from '@nes
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma.service';
-import { AiService } from './ai.service';
+import { AiService, type TriageResult } from './ai.service';
+import { ChainService } from './chain.service';
 import { CommunityService } from '../community/community.service';
 import {
   IntentDto,
@@ -22,6 +23,7 @@ export class GrievanceService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ai: AiService,
+    private readonly chain: ChainService,
     private readonly community: CommunityService,
     @InjectQueue('notice') private readonly noticeQueue: Queue,
   ) {}
@@ -32,8 +34,22 @@ export class GrievanceService {
    * Both statute and officer calls are fault-tolerant — a timeout never crashes the preview.
    */
   async preview(dto: IntentDto, userId: string): Promise<IntentPreview> {
-    // Step 1: Triage (need category for subsequent calls)
-    const triage = await this.ai.triage(dto.text, dto.lang);
+    // Step 1: Triage — wrapped in try/catch so an unreachable AI service returns a
+    // graceful fallback instead of an AggregateError / 500 to the client.
+    let triage: TriageResult;
+    try {
+      triage = await this.ai.triage(dto.text, dto.lang);
+    } catch (err) {
+      this.logger.warn(
+        `triage failed — ${(err as Error)?.message ?? 'unknown'}. AI service may be down. Using fallback.`,
+      );
+      triage = {
+        urgency:    'NORMAL' as const,
+        category:   'general',
+        confidence: 0,
+        reasoning:  'AI service is unavailable. Defaulting to general category — please retry.',
+      };
+    }
 
     // Step 2: Statute + Officer in parallel — use allSettled so a timeout on one never kills both
     const [statuteResult, officerResult] = await Promise.allSettled([
@@ -220,6 +236,21 @@ export class GrievanceService {
 
     // Non-blocking community clustering check
     void this.community.checkAndCluster(grievance.id);
+
+    // Non-blocking blockchain record — failure never blocks the user
+    void this.chain.record({
+      id:          grievance.id,
+      rawText:     grievance.rawText,
+      category:    grievance.category,
+      urgency:     grievance.urgency,
+      statute:     grievance.statute,
+      section:     grievance.section,
+      pin:         grievance.pin,
+      locality:    grievance.locality,
+      isAnonymous: grievance.isAnonymous,
+      officer:     grievance.officer,
+      user:        grievance.user,
+    });
 
     return grievance;
   }

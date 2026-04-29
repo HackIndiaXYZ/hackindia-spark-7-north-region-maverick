@@ -11,6 +11,7 @@ import {
   Card,
   Tag,
   ErrorBoundary,
+  GpsButton,
 } from '@/components/ui';
 import { createApiClient, type NearestPlace, type SosTriggerResponse } from '@/lib/api';
 import {
@@ -20,6 +21,7 @@ import {
   type SosDeliveryPayload,
 } from '@/lib/socket';
 import { strings } from '@/lib/strings';
+import { useGps } from '@/hooks/useGps';
 
 const s = strings.sos;
 
@@ -131,6 +133,9 @@ function SosContent() {
   const [errorMsg, setErrorMsg] = useState('');
   const socketCleanup = useRef<(() => void) | null>(null);
 
+  // Pre-fetch GPS so the user can confirm their location is detected before triggering
+  const gps = useGps();
+
   /* Cleanup socket on unmount */
   useEffect(() => {
     return () => {
@@ -145,23 +150,28 @@ function SosContent() {
     setDeliveries([]);
     setErrorMsg('');
 
-    /* 1. Request geolocation */
+    /* 1. Get geolocation — use pre-fetched coords if available, else fetch now */
     let lat: number;
     let lng: number;
 
-    try {
-      const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 8000,
+    if (gps.coords) {
+      lat = gps.coords.lat;
+      lng = gps.coords.lng;
+    } else {
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 8000,
+          });
         });
-      });
-      lat = pos.coords.latitude;
-      lng = pos.coords.longitude;
-    } catch {
-      setErrorMsg(s.locationError);
-      setPhase('error');
-      return;
+        lat = pos.coords.latitude;
+        lng = pos.coords.longitude;
+      } catch {
+        setErrorMsg(s.locationError);
+        setPhase('error');
+        return;
+      }
     }
 
     /* 2. Connect Socket.io for live status */
@@ -228,9 +238,39 @@ function SosContent() {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                className="flex flex-1 items-center justify-center py-8"
+                className="flex flex-1 flex-col items-center justify-center gap-6 py-8 w-full"
               >
                 <Pulse onTrigger={handleTrigger} size={180} />
+
+                {/* GPS location strip */}
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="w-full max-w-xs rounded-2xl border border-white/10 bg-white/[0.06] p-4 space-y-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-white/80">📍 Your location</span>
+                    {gps.state === 'ok' && (
+                      <span className="inline-flex items-center rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 ring-1 ring-emerald-400/20">
+                        CONFIRMED
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-white/50">
+                    {gps.state === 'ok'
+                      ? 'Your GPS coordinates are ready. They will be broadcast instantly when you trigger SOS.'
+                      : 'Pin your location now so SOS broadcasts your exact position without delay.'}
+                  </p>
+                  <GpsButton
+                    state={gps.state}
+                    coords={gps.coords}
+                    error={gps.error}
+                    onFetch={gps.fetch}
+                    onReset={gps.reset}
+                    variant="dark"
+                  />
+                </motion.div>
               </motion.div>
             )}
 

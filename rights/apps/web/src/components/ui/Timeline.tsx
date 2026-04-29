@@ -11,17 +11,27 @@ const s = strings.grievance;
 /* ── Icons per EventKind ──────────────────────────────────── */
 
 const eventIcons: Record<string, string> = {
-  FILED: '📄',
-  FOLLOWUP_7D: '🔔',
-  ESCALATION_14D: '⚠️',
-  SOS_BROADCAST: '🚨',
+  FILED:            '📄',
+  FOLLOWUP_7D:      '🔔',
+  ESCALATION_14D:   '⚠️',
+  SOS_BROADCAST:    '🚨',
+  USER_UPDATE:      '💬',
+  COMMUNITY_NOTICE: '🏘️',
 };
 
 const eventColors: Record<string, string> = {
-  FILED: 'bg-brand-500',
-  FOLLOWUP_7D: 'bg-amber-500',
-  ESCALATION_14D: 'bg-sos-500',
-  SOS_BROADCAST: 'bg-sos-600',
+  FILED:            'bg-brand-500',
+  FOLLOWUP_7D:      'bg-amber-500',
+  ESCALATION_14D:   'bg-sos-500',
+  SOS_BROADCAST:    'bg-sos-600',
+  USER_UPDATE:      'bg-slate-500',
+  COMMUNITY_NOTICE: 'bg-leaf-600',
+};
+
+const sourceLabel: Record<string, string> = {
+  SYSTEM:  'System',
+  OFFICER: 'Officer',
+  USER:    'You',
 };
 
 /* ── Types ────────────────────────────────────────────────── */
@@ -99,13 +109,19 @@ export function Timeline({ events, className = '' }: TimelineProps) {
               <h3 className="text-sm font-semibold text-ink">
                 {s.eventLabels[event.kind] ?? event.kind}
               </h3>
-              <Tag
-                value={event.channel}
-                colorScheme="channel"
-                small
-              >
+              <Tag value={event.channel} colorScheme="channel" small>
                 {s.channelLabels[event.channel] ?? event.channel}
               </Tag>
+              {/* Source badge — highlight officer replies */}
+              {event.source && event.source !== 'SYSTEM' && (
+                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${
+                  event.source === 'OFFICER'
+                    ? 'bg-brand-50 text-brand-700 ring-brand-100 dark:bg-brand-500/10 dark:text-brand-300'
+                    : 'bg-canvas-2 text-ink-muted ring-line'
+                }`}>
+                  {sourceLabel[event.source] ?? event.source}
+                </span>
+              )}
             </div>
 
             <time className="mt-1 block text-xs text-ink-soft">
@@ -115,14 +131,45 @@ export function Timeline({ events, className = '' }: TimelineProps) {
               })}
             </time>
 
-            {/* Payload preview */}
-            {event.payload && Object.keys(event.payload).length > 0 && (
-              <div className="mt-3 rounded-lg bg-canvas-2 p-3 ring-1 ring-line">
-                <pre className="overflow-x-auto scrollbar-hide text-xs text-ink-muted">
-                  {JSON.stringify(event.payload, null, 2).slice(0, 300)}
-                </pre>
+            {/* Officer / user reply — render as message bubble */}
+            {event.kind === 'USER_UPDATE' && event.payload && (event.payload as Record<string, unknown>).message ? (
+              <div className={`mt-3 rounded-xl p-3 text-sm leading-relaxed ${
+                event.source === 'OFFICER'
+                  ? 'bg-brand-50 text-brand-900 ring-1 ring-brand-100 dark:bg-brand-500/10 dark:text-brand-100'
+                  : 'bg-canvas-2 text-ink ring-1 ring-line'
+              }`}>
+                {String((event.payload as Record<string, unknown>).message)}
               </div>
-            )}
+            ) : event.payload && Object.keys(event.payload).length > 0 ? (
+              /* Generic payload — show key details, not raw JSON */
+              <div className="mt-3 space-y-1.5">
+                {(event.payload as Record<string, unknown>).subject && (
+                  <p className="text-xs font-medium text-ink">
+                    📧 {String((event.payload as Record<string, unknown>).subject)}
+                  </p>
+                )}
+                {(event.payload as Record<string, unknown>).to && (
+                  <p className="text-xs text-ink-muted">
+                    To: {String((event.payload as Record<string, unknown>).to)}
+                  </p>
+                )}
+                {(event.payload as Record<string, unknown>).ccParent && (
+                  <p className="text-xs text-ink-muted">
+                    CC: {String((event.payload as Record<string, unknown>).ccParent)} (parent authority)
+                  </p>
+                )}
+                {(event.payload as Record<string, unknown>).escalatedTo && (
+                  <p className="text-xs font-medium text-sos-600 dark:text-sos-400">
+                    ↑ Escalated to: {String((event.payload as Record<string, unknown>).escalatedTo)}
+                  </p>
+                )}
+                {(event.payload as Record<string, unknown>).followupNumber && (
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Reminder #{String((event.payload as Record<string, unknown>).followupNumber)} sent
+                  </p>
+                )}
+              </div>
+            ) : null}
           </Card>
         </motion.div>
       ))}
